@@ -3,6 +3,12 @@
 #include "utils.h"
 #include <globals.h>
 
+// ==========================================
+// VOLTSHIELD X: EXTERNAL APP LINKAGE
+// ==========================================
+extern void voltshield_app(); 
+// ==========================================
+
 MainMenu::MainMenu() {
     _menuItems = {
         &wifiMenu,
@@ -46,13 +52,13 @@ void MainMenu::begin(void) {
     std::vector<String> l = bruceConfig.disabledMenus;
     for (int i = 0; i < _totalItems; i++) {
         String itemName = _menuItems[i]->getName();
-        if (find(l.begin(), l.end(), itemName) == l.end()) { // If menu item is not disabled
+        if (find(l.begin(), l.end(), itemName) == l.end()) { 
             options.push_back(
-                {// selected lambda
+                {
                  _menuItems[i]->getName(),
                  [this, i]() { _menuItems[i]->optionsMenu(); },
-                 false,                                  // selected = false
-                 [](void *menuItem, bool shouldRender) { // render lambda
+                 false,                                  
+                 [](void *menuItem, bool shouldRender) { 
                      if (!shouldRender) return false;
                      drawMainBorder(false);
 
@@ -70,17 +76,37 @@ void MainMenu::begin(void) {
             );
         }
     }
+
+    // ==========================================
+    // VOLTSHIELD X: SOVEREIGN MENU INJECTION
+    // ==========================================
+    options.push_back({
+        "VoltShield X",
+        []() { voltshield_app(); }, // استدعاء التطبيق الأمني
+        false,
+        [](void *menuItem, bool shouldRender) {
+            if (!shouldRender) return false;
+            drawMainBorder(false);
+            tft.setTextColor(TFT_GREEN);
+            tft.setTextSize(2);
+            // رسم أيقونة نصية بسيطة للمنظومة
+            tft.drawCentreString("[ VX ]", tftWidth / 2, tftHeight / 2 - 30, 1);
+            tft.setTextSize(1);
+            tft.drawCentreString("Sovereign Security", tftWidth / 2, tftHeight / 2 + 10, 1);
+#if defined(HAS_TOUCH)
+            TouchFooter();
+#endif
+            return true;
+        }
+    });
+    // ==========================================
+
     _currentIndex = loopOptions(options, MENU_TYPE_MAIN, "Main Menu", _currentIndex);
 };
 
-/*********************************************************************
-**  Function: hideAppsMenu
-**  Menu to Hide or show menus
-**********************************************************************/
-
 void MainMenu::hideAppsMenu() {
     auto items = this->getItems();
-RESTART: // using gotos to avoid stackoverflow after many choices
+RESTART: 
     options.clear();
     for (auto item : items) {
         String label = item->getName();
