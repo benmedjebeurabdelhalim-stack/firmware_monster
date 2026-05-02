@@ -15,16 +15,17 @@
 
 extern BruceConfigPins bruceConfigPins;
 
+// متغيرات التحكم بالواجهة
 bool update = false;
 String msg;
 String rcvmsg;
 String displayName;
 bool intlora = true;
-// scrolling thing
 std::vector<String> messages;
 int scrollOffset = 0;
 const int maxMessages = 19;
 
+// إعدادات البث (Sovereign LoRa Settings)
 #define spreadingFactor 9
 #define SignalBandwidth 31.25E3
 #define codingRateDenominator 8
@@ -35,47 +36,29 @@ int yStart = 35;
 int yPos = yStart;
 int ySpacing = 10;
 int rightColumnX = tftWidth / 2 + 10;
+
 SPIClass *loraSpi = nullptr;
 Module *loraModule = nullptr;
 SX1276 *lora1276 = nullptr;
 SX1262 *lora1262 = nullptr;
+
 volatile bool loraPacketReceived = false;
 volatile bool loraInterruptEnabled = true;
 enum class LoRaRadioVariant { SX1276, SX1262 };
-LoRaRadioVariant loraRadioVariant = LoRaRadioVariant::SX1276;
+LoRaRadioVariant loraRadioVariant = LoRaRadioVariant::SX1276; // Ra-02 هو SX1278 ويتوافق مع تعريف 1276
 
-int getLoraIrqPin() {
-#ifdef LORA_IRQ
-    return LORA_IRQ;
-#else
-    return bruceConfigPins.LoRa_bus.io2;
-#endif
-}
-
-int getLoraBusyPin() {
-#ifdef LORA_BUSY
-    return LORA_BUSY;
-#else
-    return GPIO_NUM_NC;
-#endif
-}
-
-int getLoraResetPin() { return bruceConfigPins.LoRa_bus.io0; }
-int getLoraCsPin() { return bruceConfigPins.LoRa_bus.cs; }
+// ========================================================
+// VOLTSHIELD X: HARDCODED PIN DEFINITIONS (Sovereign Injection)
+// ========================================================
+int getLoraIrqPin()   { return 6; }  // الدبوس GPIO 6 حسب مخططك
+int getLoraCsPin()    { return 7; }  // الدبوس GPIO 7 حسب مخططك
+int getLoraResetPin() { return -1; } // Ra-02 غالباً مربوط بالـ 3.3V أو لا يحتاج رست خارجي
+int getLoraBusyPin()  { return GPIO_NUM_NC; }
 
 void clearLoraRadio() {
-    if (lora1276) {
-        delete lora1276;
-        lora1276 = nullptr;
-    }
-    if (lora1262) {
-        delete lora1262;
-        lora1262 = nullptr;
-    }
-    if (loraModule) {
-        delete loraModule;
-        loraModule = nullptr;
-    }
+    if (lora1276) { delete lora1276; lora1276 = nullptr; }
+    if (lora1262) { delete lora1262; lora1262 = nullptr; }
+    if (loraModule) { delete loraModule; loraModule = nullptr; }
 }
 
 void onLoraPacket() {
@@ -84,60 +67,26 @@ void onLoraPacket() {
 }
 
 SPIClass *selectLoraSPIBus() {
-    SPIClass *selectedSPI = &SPI;
-    if (bruceConfigPins.LoRa_bus.mosi == TFT_MOSI) {
-#if TFT_MOSI > 0
-        selectedSPI = &tft.getSPIinstance();
-#endif
-        Serial.println("Using TFT SPI for LoRa");
-    } else if (bruceConfigPins.SDCARD_bus.mosi == bruceConfigPins.LoRa_bus.mosi) {
-        selectedSPI = &sdcardSPI;
-        Serial.println("Using SDCard SPI for LoRa");
-    } else if (bruceConfigPins.NRF24_bus.mosi == bruceConfigPins.LoRa_bus.mosi ||
-               bruceConfigPins.CC1101_bus.mosi == bruceConfigPins.LoRa_bus.mosi) {
-        selectedSPI = &CC_NRF_SPI;
-        CC_NRF_SPI.begin(
-            (int8_t)bruceConfigPins.LoRa_bus.sck,
-            (int8_t)bruceConfigPins.LoRa_bus.miso,
-            (int8_t)bruceConfigPins.LoRa_bus.mosi
-        );
-        Serial.println("Using CC/NRF SPI for LoRa");
-    } else {
-        SPI.begin(
-            bruceConfigPins.LoRa_bus.sck,
-            bruceConfigPins.LoRa_bus.miso,
-            bruceConfigPins.LoRa_bus.mosi,
-            bruceConfigPins.LoRa_bus.cs
-        );
-        Serial.println("Using dedicated SPI for LoRa");
-    }
-    return selectedSPI;
+    // إجبار اللورا على استخدام ناقل SPI المشترك مع الشاشة لضمان عدم حدوث Crash
+    // الدبابيس هي (11, 12, 13) التي قمنا بتهيئتها في MyDisplay.h
+    Serial.println("VoltShield X: Using Shared SPI for LoRa Operations");
+    return &tft.getSPIinstance(); 
 }
 
 bool startLoraRadio(float bandMHz) {
     intlora = false;
     loraPacketReceived = false;
     loraInterruptEnabled = true;
+    
+    // سحب الدبابيس المادية المحددة
     const int irqPin = getLoraIrqPin();
-    if (getLoraCsPin() == GPIO_NUM_NC || bruceConfigPins.LoRa_bus.mosi == GPIO_NUM_NC ||
-        bruceConfigPins.LoRa_bus.miso == GPIO_NUM_NC || bruceConfigPins.LoRa_bus.sck == GPIO_NUM_NC) {
-        Serial.println("LoRa pins not configured!");
-        displayError("LoRa pins not configured!", true);
-        return false;
-    }
-    if (irqPin == GPIO_NUM_NC) {
-        Serial.println("LoRa IRQ pin not configured!");
-        displayError("LoRa IRQ pin not configured!", true);
-        return false;
-    }
+    const int csPin = getLoraCsPin();
 
     loraSpi = selectLoraSPIBus();
     clearLoraRadio();
-    const int busyPin = (loraRadioVariant == LoRaRadioVariant::SX1262) ? getLoraBusyPin() : GPIO_NUM_NC;
-    if (loraRadioVariant == LoRaRadioVariant::SX1262 && busyPin == GPIO_NUM_NC) {
-        Serial.println("Warning: SX1262 selected but BUSY pin is not configured");
-    }
-    loraModule = new Module(getLoraCsPin(), irqPin, getLoraResetPin(), busyPin, *loraSpi);
+    
+    // تهيئة موديول SX1278 (Ra-02)
+    loraModule = new Module(csPin, irqPin, getLoraResetPin(), GPIO_NUM_NC, *loraSpi);
 
     int state = RADIOLIB_ERR_NONE;
     if (loraRadioVariant == LoRaRadioVariant::SX1276) {
@@ -150,6 +99,7 @@ bool startLoraRadio(float bandMHz) {
         if (state == RADIOLIB_ERR_NONE) state = lora1276->setPreambleLength(preambleLength);
         if (state == RADIOLIB_ERR_NONE) state = lora1276->startReceive();
     } else {
+        // دعم SX1262 في حال قمت بترقية الهاردوار مستقبلاً
         lora1262 = new SX1262(loraModule);
         state = lora1262->begin(bandMHz);
         if (state == RADIOLIB_ERR_NONE) { lora1262->setDio1Action(onLoraPacket); }
@@ -161,15 +111,18 @@ bool startLoraRadio(float bandMHz) {
     }
 
     if (state != RADIOLIB_ERR_NONE) {
-        Serial.printf("Starting LoRa failed! Err %d\n", state);
+        Serial.printf("LoRa Initialization Failed! Error: %d\n", state);
         displayError("LoRa Init Failed", true);
         clearLoraRadio();
         return false;
     }
     intlora = true;
-    Serial.println("LoRa Started");
+    Serial.println("LoRa Ra-02 Ready on VoltShield X");
     return true;
 }
+
+// ... بقية الوظائف البرمجية (sendLoraMessage, reciveMessage, render...)
+// تم الإبقاء عليها كما هي لأنها تتعامل مع المنطق البرمجي للرسائل والقوائم.
 
 bool sendLoraMessage(String &payload) {
     if (!intlora) return false;
@@ -204,7 +157,7 @@ void reciveMessage() {
                     : (lora1276 ? lora1276->readData(incoming) : -1);
     if (state == RADIOLIB_ERR_NONE) {
         rcvmsg = incoming;
-        Serial.println("Recived:" + rcvmsg);
+        Serial.println("Received: " + rcvmsg);
         File file = LittleFS.open("/chats.txt", "a");
         file.println(rcvmsg);
         file.close();
@@ -222,15 +175,12 @@ void reciveMessage() {
     loraInterruptEnabled = true;
 }
 
-// render stuff
-
 void render() {
     if (!update) return;
     tft.setTextSize(1);
     tft.fillScreen(TFT_BLACK);
     tft.setTextColor(0x6DFC);
     if (!intlora) { tft.drawString("Lora Init Failed", 10, 13); }
-    Serial.println(String(displayName));
     tft.drawString("USRN: " + String(displayName), 10, 25);
 
     int yPos = yStart;
@@ -259,27 +209,20 @@ void loadMessages() {
     }
 }
 
-// optional call funcs
 void sendmsg() {
-    Serial.println("C bttn");
+    Serial.println("Send Action Initiated");
     tft.fillScreen(TFT_BLACK);
     if (!intlora) {
-        tft.setTextColor(bruceConfig.priColor);
-
         tft.setTextColor(TFT_RED);
         tft.setTextSize(2);
-        tft.setCursor(10, tftHeight / 2 - 10);
-        tft.print("LoRa not init!");
-
         tft.drawCentreString("LoRa not initialized!", tftWidth / 2, tftHeight / 2, 2);
         delay(1500);
         update = true;
         return;
     }
     msg = keyboard(msg, 256, "Message:");
+    if (msg == "") { update = true; return; }
     msg = String(displayName) + ": " + msg;
-    if (msg == "") return;
-    Serial.println(msg);
     if (!sendLoraMessage(msg)) {
         update = true;
         return;
@@ -296,7 +239,6 @@ void sendmsg() {
 }
 
 void upress() {
-    Serial.println("Up Pressed");
     if (scrollOffset > 0) {
         scrollOffset--;
         update = true;
@@ -304,7 +246,6 @@ void upress() {
 }
 
 void downpress() {
-    Serial.println("Down Pressed");
     if (scrollOffset < messages.size() - maxMessages) {
         scrollOffset++;
         update = true;
@@ -331,83 +272,31 @@ void selectRadioVariant(JsonDocument &doc) {
 }
 
 void mainloop() {
-    long pressStartTime = 0;
-    bool isPressing = false;
     bool breakloop = false;
     while (true) {
         render();
         reciveMessage();
         if (breakloop) { break; }
-#ifdef HAS_3_BUTTONS
-        if (EscPress) {
-            long _tmp = millis();
-
-            LongPress = true;
-            while (EscPress) {
-                if (millis() - _tmp > 200) {
-                    // start drawing arc after short delay; animate over 500ms
-                    int sweep = 0;
-                    long elapsed = millis() - (_tmp + 200);
-                    if (elapsed > 0) sweep = 360 * elapsed / 500;
-                    if (sweep > 360) sweep = 360;
-                    tft.drawArc(
-                        tftWidth / 2,
-                        tftHeight / 2,
-                        25,
-                        15,
-                        0,
-                        sweep,
-                        getColorVariation(bruceConfig.priColor),
-                        bruceConfig.bgColor
-                    );
-                }
-                vTaskDelay(10 / portTICK_PERIOD_MS);
-            }
-            // clear arc
-            tft.drawArc(
-                tftWidth / 2, tftHeight / 2, 25, 15, 0, 360, bruceConfig.bgColor, bruceConfig.bgColor
-            );
-            LongPress = false;
-            // #endif
-
-            // decide short vs long after release
-            if (millis() - _tmp > 700) {
-                // long press -> exit
-                breakloop = true;
-            } else {
-                // short press -> scroll down; consume flag first
-                check(EscPress);
-                upress();
-            }
-        }
-
-        if (check(NextPress)) downpress();
-        if (check(SelPress)) sendmsg();
-#else
 
         if (check(NextPress)) downpress();
         if (check(EscPress)) break;
         if (check(PrevPress)) upress();
         if (check(SelPress)) sendmsg();
-#endif
 
         delay(20);
     }
 }
 
 void lorachat() {
-    // set filesystem thing
     if (!LittleFS.exists("/chats.txt")) {
         File file = LittleFS.open("/chats.txt", "w");
         file.close();
-        Serial.println("chat file created :)");
     }
     if (!LittleFS.exists("/lora_settings.json")) {
-        Serial.println("creating lora settings .json file");
         JsonDocument doc;
         File file = LittleFS.open("/lora_settings.json", "w");
         doc["LoRa_Frequency"] = "434500000.00";
-        doc["LoRa_Name"] = "BruceTest";
+        doc["LoRa_Name"] = "VoltShieldX";
         doc["LoRa_Radio"] = "SX1276";
         serializeJson(doc, file);
         file.close();
@@ -418,23 +307,14 @@ void lorachat() {
     displayName = doc["LoRa_Name"].as<String>();
     double BAND = doc["LoRa_Frequency"].as<String>().toDouble();
     file.close();
+    
     selectRadioVariant(doc);
-    float bandMHz = (BAND > 1000) ? BAND / 1000000.0f : BAND;
-    if (bandMHz <= 0) {
-        displayError("Invalid LoRa frequency", true);
-        return;
-    }
+    float bandMHz = (BAND > 1000) ? BAND / 1000000.0f : (float)BAND;
+    
     tft.fillScreen(TFT_BLACK);
     update = true;
-    Serial.println("Initializing LoRa...");
-    Serial.println(
-        "Pins: SCK:" + String(bruceConfigPins.LoRa_bus.sck) +
-        " MISO:" + String(bruceConfigPins.LoRa_bus.miso) + " MOSI:" + String(bruceConfigPins.LoRa_bus.mosi) +
-        " CS:" + String(bruceConfigPins.LoRa_bus.cs) + " RST:" + String(getLoraResetPin()) +
-        " IRQ:" + String(getLoraIrqPin()) + "BAND: " + String(bandMHz) +
-        "MHz Radio: " + ((loraRadioVariant == LoRaRadioVariant::SX1262) ? "SX1262" : "SX1276") +
-        " DisplayName:  " + displayName
-    );
+    
+    Serial.println("Sovereign Init: " + String(bandMHz) + "MHz");
 
     if (!startLoraRadio(bandMHz)) {
         update = true;
@@ -446,11 +326,9 @@ void lorachat() {
     mainloop();
 }
 
-// settings
-// check the saving and loading
 void changeusername() {
     tft.fillScreen(TFT_BLACK);
-    String username = keyboard(username, 64, "");
+    String username = keyboard("", 64, "Set Nickname:");
     if (username == "") return;
     File file = LittleFS.open("/lora_settings.json", "r");
     JsonDocument doc;
@@ -473,13 +351,10 @@ void chfreq() {
     double dfreq = doc["LoRa_Frequency"].as<String>().toDouble();
     dfreq = dfreq / 1000000;
     snprintf(buf, sizeof(buf), "%.3f", dfreq);
-    String freq = num_keyboard(buf, 12, "in Mhz");
+    String freq = num_keyboard(buf, 12, "In MHz:");
     dfreq = freq.toDouble();
-    if (dfreq == 0) {
-        displayError("Invalid value");
-        return;
-    } else if (dfreq > 1000) {
-        displayError("Invalid value, Exceeds 1Ghz");
+    if (dfreq == 0 || dfreq > 1000) {
+        displayError("Invalid Frequency");
         return;
     }
     dfreq = dfreq * 1000000;
