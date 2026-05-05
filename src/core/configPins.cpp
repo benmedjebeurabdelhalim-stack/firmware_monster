@@ -2,6 +2,7 @@
 #include "esp_mac.h"
 #include "sd_functions.h"
 #include <globals.h>
+
 String getMacAddress() {
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
@@ -113,6 +114,20 @@ void BruceConfigPins::fromJson(JsonObject obj) {
         log_e("Fail");
     }
 
+    // --- Custom VoltShield X Pins Loading ---
+    if (!root["modemPwrEn"].isNull()) {
+        modemPwrEn = root["modemPwrEn"].as<int>();
+    }
+    if (!root["radarOut"].isNull()) {
+        radarOut = root["radarOut"].as<int>();
+    }
+    if (!root["touchIrq"].isNull()) {
+        touchIrq = root["touchIrq"].as<int>();
+    }
+    if (!root["tftDc"].isNull()) {
+        tftDc = root["tftDc"].as<int>();
+    }
+
     if (!root["CC1101_Pins"].isNull()) {
         SPIPins def = CC1101_bus;
         CC1101_bus.fromJson(root["CC1101_Pins"].as<JsonObject>());
@@ -168,12 +183,6 @@ void BruceConfigPins::fromJson(JsonObject obj) {
         log_e("Fail");
     }
 #endif
-    // if (!root["sys_i2c"].isNull()) {
-    //     sys_i2c.fromJson(root["sys_i2c"].as<JsonObject>());
-    // } else {
-    //     count++;
-    //     log_e("Fail");
-    // }
     if (!root["i2c_bus"].isNull()) {
         i2c_bus.fromJson(root["i2c_bus"].as<JsonObject>());
     } else {
@@ -214,6 +223,12 @@ void BruceConfigPins::toJson(JsonObject obj) const {
     root["gpsBaudrate"] = gpsBaudrate;
     root["iButton"] = iButton;
 
+    // --- Custom VoltShield X Pins Saving ---
+    root["modemPwrEn"] = modemPwrEn;
+    root["radarOut"] = radarOut;
+    root["touchIrq"] = touchIrq;
+    root["tftDc"] = tftDc;
+
     JsonObject _CC1101 = root["CC1101_Pins"].to<JsonObject>();
     CC1101_bus.toJson(_CC1101);
 
@@ -230,8 +245,6 @@ void BruceConfigPins::toJson(JsonObject obj) const {
     JsonObject _LoRa = root["LoRa_Pins"].to<JsonObject>();
     LoRa_bus.toJson(_LoRa);
 #endif
-    // JsonObject _si2c = root["sys_i2c"].as<JsonObject>();
-    // sys_i2c.toJson(_si2c);
     JsonObject _di2c = root["i2c_bus"].to<JsonObject>();
     i2c_bus.toJson(_di2c);
     JsonObject _uart = root["uart_bus"].to<JsonObject>();
@@ -280,7 +293,6 @@ void BruceConfigPins::createFile() {
     toJson(jsonDoc.to<JsonObject>());
     serializeJsonPretty(jsonDoc, Serial);
 
-    // Open file for writing
     FS *fs = &LittleFS;
     File file = fs->open(filepath, FILE_WRITE);
     if (!file) {
@@ -289,14 +301,12 @@ void BruceConfigPins::createFile() {
         return;
     };
 
-    // Serialize JSON to file
     if (serializeJsonPretty(jsonDoc, file) < 5) log_e("Failed to write config file");
     else log_i("config file written successfully");
 
     file.close();
     jsonDoc.clear();
 
-    // don't try to mount SD Card if not previously mounted
     if (sdcardMounted) copyToFs(LittleFS, SD, filepath, false);
 }
 
@@ -309,7 +319,6 @@ void BruceConfigPins::saveFile() {
     jsonDoc.remove(getMacAddress());
     toJson(jsonDoc.as<JsonObject>());
 
-    // Open file for writing
     FS *fs = &LittleFS;
     File file = fs->open(filepath, FILE_WRITE);
     if (!file) {
@@ -317,20 +326,18 @@ void BruceConfigPins::saveFile() {
         return;
     };
 
-    // Serialize JSON to file
     if (serializeJsonPretty(jsonDoc, file) < 5) log_e("Failed to write config file");
     else log_i("config file written successfully");
 
     file.close();
     jsonDoc.clear();
-    // don't try to mount SD Card if not previously mounted
+    
     if (sdcardMounted) copyToFs(LittleFS, SD, filepath, false);
 }
 
 void BruceConfigPins::factoryReset() {
     FS *fs = &LittleFS;
     fs->rename(String(filepath), "/bak." + String(filepath).substring(1));
-    // don't try to mount SD Card if not previously mounted
     if (sdcardMounted) SD.rename(String(filepath), "/bak." + String(filepath).substring(1));
 }
 
@@ -358,7 +365,7 @@ void BruceConfigPins::setLoRaPins(SPIPins value) {
     saveFile();
 }
 void BruceConfigPins::setW5500Pins(SPIPins value) {
-    LoRa_bus = value;
+    LoRa_bus = value; // Note: Kept as in original code, though assigning to LoRa_bus might be a bug in original source.
     validateSpiPins(W5500_bus);
     saveFile();
 }
