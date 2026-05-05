@@ -203,6 +203,12 @@ public:
     // GPS
     int gpsBaudrate = 9600;
 
+    // --- Custom VoltShield X Interface ---
+    int modemPwrEn = MODEM_PWR_EN;
+    int radarOut   = RADAR_OUT;
+    int touchIrq   = TOUCH_IRQ;
+    int tftDc      = TFT_DC;
+
     /////////////////////////////////////////////////////////////////////////////////////
     // Constructor
     /////////////////////////////////////////////////////////////////////////////////////
