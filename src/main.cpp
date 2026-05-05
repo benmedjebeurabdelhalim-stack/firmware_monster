@@ -197,6 +197,16 @@ void _post_setup_gpio() __attribute__((weak));
 void _post_setup_gpio() {}
 
 void setup_gpio() {
+    // ==========================================
+    // VOLTSHIELD X: CRITICAL SPI LOCKDOWN (ANTI-LOOP)
+    // ==========================================
+    // تأمين الناقل: نرفع كل دبابيس الـ CS للـ HIGH قبل أي اتصال لمنع تداخل الأجهزة
+    pinMode(TFT_CS, OUTPUT);    digitalWrite(TFT_CS, HIGH);
+    pinMode(SDCARD_CS, OUTPUT); digitalWrite(SDCARD_CS, HIGH);
+    pinMode(TOUCH_CS, OUTPUT);  digitalWrite(TOUCH_CS, HIGH);
+    pinMode(LORA_CS, OUTPUT);   digitalWrite(LORA_CS, HIGH);
+    // ==========================================
+
     _setup_gpio();
     ioExpander.init(IO_EXPANDER_ADDRESS, &Wire);
 
@@ -239,12 +249,12 @@ void boot_screen() {
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FM);
     tft.drawPixel(0, 0, bruceConfig.bgColor);
-    tft.drawCentreString("Bruce", tftWidth / 2, 10, 1);
+    tft.drawCentreString("VoltShield X", tftWidth / 2, 10, 1);
     tft.setTextSize(FP);
-    tft.drawCentreString(BRUCE_VERSION, tftWidth / 2, 25, 1);
+    tft.drawCentreString("SYSTEM BOOTING...", tftWidth / 2, 25, 1);
     tft.setTextSize(FM);
     tft.drawCentreString(
-        "PREDATORY FIRMWARE", tftWidth / 2, tftHeight + 2, 1
+        "SOVEREIGN FIRMWARE", tftWidth / 2, tftHeight + 2, 1
     ); 
 }
 
@@ -424,7 +434,7 @@ void setup() {
     tft.setRotation(bruceConfigPins.rotation);
     tft.fillScreen(TFT_BLACK);
     tft.setTextColor(TFT_PURPLE, TFT_BLACK);
-    tft.drawCentreString("Booting", tft.width() / 2, tft.height() / 2, 1);
+    tft.drawCentreString("Booting VoltShield...", tft.width() / 2, tft.height() / 2, 1);
 #else
     tft.begin();
 #endif
