@@ -1,7 +1,7 @@
 // clang-format off
 #pragma once
-/*     This file has the purpose to verify the existence of some default flags      */
-/*                Only PreCompiler code must be set in this file                    */
+/* This file has the purpose to verify the existence of some default flags      */
+/* Only PreCompiler code must be set in this file                    */
 
 #include <pins_arduino.h>
 
@@ -41,109 +41,127 @@
 
 #endif
 
+// --- I2C Bus Configuration ---
+#ifndef GROVE_SDA           
+  #define GROVE_SDA 8 // GPIO 8 -> SDA
+#endif
+#ifndef GROVE_SCL           
+  #define GROVE_SCL 9 // GPIO 9 -> SCL
+#endif
 
-#ifndef GROVE_SDA           // Pin to be used in I2C communications
-  #define GROVE_SDA -1
-#endif
-#ifndef GROVE_SCL           // Pin to be used in I2C communications
-  #define GROVE_SCL -1
-#endif
-#ifndef RXLED               // Default RX Infrared LED
+#ifndef RXLED               
   #define RXLED GROVE_SCL
 #endif
-#ifndef TXLED                 // Default TX Infrared Led
+#ifndef TXLED                 
   #define TXLED GROVE_SDA
 #endif
-#ifndef LED_ON              // Infrared TXLED On state
+#ifndef LED_ON              
   #define LED_ON 1
 #endif
-#ifndef LED_OFF             // Infrared LED Off state
+#ifndef LED_OFF             
   #define LED_OFF 0
 #endif
-#ifndef FP                  // Small Font -> Font Pequena
+#ifndef FP                  
   #define FP 1
 #endif
-#ifndef FM                  // Medium Font -> Fonte Media
+#ifndef FM                  
   #define FM 2
 #endif
-#ifndef FG                  // LArge Font -> Fonte Grande
+#ifndef FG                  
   #define FG 3
 #endif
 #ifndef ROTATION
   #define ROTATION 1
 #endif
 #ifndef	TFT_WIDTH
-  #define TFT_WIDTH 240
+  #define TFT_WIDTH 320 // عدلناها لحجم شاشتك
 #endif
 #ifndef TFT_HEIGHT
-  #define TFT_HEIGHT 135
+  #define TFT_HEIGHT 480 // عدلناها لحجم شاشتك
 #endif
 
+// --- LoRa SPI & Control Pins ---
 #ifndef LORA_SCK
-  #define LORA_SCK -1
+  #define LORA_SCK 12
 #endif
 #ifndef LORA_MISO
-  #define LORA_MISO -1
+  #define LORA_MISO 13
 #endif
 #ifndef LORA_MOSI
-  #define LORA_MOSI -1
+  #define LORA_MOSI 11
 #endif
 #ifndef LORA_CS
-  #define LORA_CS -1
+  #define LORA_CS 7
 #endif
 #ifndef LORA_RST
-  #define LORA_RST -1
+  #define LORA_RST -1 // إذا كان عندها ريزيت خاص ديرو هنا
 #endif
 #ifndef LORA_DIO0
-  #define LORA_DIO0 -1
+  #define LORA_DIO0 6
 #endif
 
-// Default initializers
+// --- TFT Display SPI & Control Pins ---
 #ifndef TFT_CS
-  #define TFT_CS -1
+  #define TFT_CS 10
 #endif
 #ifndef TFT_RST
-  #define TFT_RST -1
+  #define TFT_RST 5
 #endif
 #ifndef TFT_SCLK
-  #define TFT_SCLK -1
+  #define TFT_SCLK 12
 #endif
 #ifndef TFT_MOSI
-  #define TFT_MOSI -1
+  #define TFT_MOSI 11
+#endif
+#ifndef TFT_DC
+  #define TFT_DC 14 // إضافة مهمة
 #endif
 #ifndef TFT_BL
-  #define TFT_BL -1
+  #define TFT_BL -1 // التغذية راهي خارجية 3.3V
 #endif
+
+// --- Touch Interface ---
 #ifndef TOUCH_CS
-  #define TOUCH_CS -1
+  #define TOUCH_CS 4
 #endif
+#ifndef TOUCH_IRQ
+  #define TOUCH_IRQ 2
+#endif
+
+// --- SD Card SPI & Control Pins ---
 #ifndef SDCARD_MOSI
-  #define SDCARD_MOSI -1
+  #define SDCARD_MOSI 11
 #endif
 #ifndef SDCARD_MISO
-  #define SDCARD_MISO  -1
+  #define SDCARD_MISO 13
 #endif
 #ifndef SDCARD_CS
-  #define SDCARD_CS -1
+  #define SDCARD_CS 21
 #endif
 #ifndef SDCARD_SCK
-  #define SDCARD_SCK -1
+  #define SDCARD_SCK 12
 #endif
 
-#ifndef SERIAL_TX         // Serial TX used for GPS communications -> To use in other boards
-  #define SERIAL_TX GROVE_SDA
+// --- Modem UART Interface ---
+#ifndef SERIAL_RX         
+  #define SERIAL_RX 17 // GPIO 17 -> ESP RX (Modem TX)
+#endif
+#ifndef SERIAL_TX         
+  #define SERIAL_TX 18 // GPIO 18 -> ESP TX (Modem RX)
+#endif
+#ifndef GPS_SERIAL_TX 
+  #define GPS_SERIAL_TX SERIAL_TX
+#endif
+#ifndef GPS_SERIAL_RX 
+  #define GPS_SERIAL_RX SERIAL_RX
 #endif
 
-#ifndef SERIAL_RX         // Serial RX used for GPS communications -> To use in other boards
-  #define SERIAL_RX GROVE_SCL
+// --- Custom VoltShield X Pins ---
+#ifndef MODEM_PWR_EN
+  #define MODEM_PWR_EN 16
 #endif
-
-#ifndef GPS_SERIAL_TX // Serial TX used just for GPS communications
-  #define GPS_SERIAL_TX GROVE_SDA
-#endif
-
-#ifndef GPS_SERIAL_RX // Serial RX used just for GPS communications
-  #define GPS_SERIAL_RX GROVE_SCL
+#ifndef RADAR_OUT
+  #define RADAR_OUT 1
 #endif
 
 //This one sets an array to set create the options to devices that have all GPIO available to use (except tft and SD Card)
@@ -186,22 +204,19 @@
     #define RF_RX_PINS GPIO_PIN_LIST
 #endif
 
+// ... (Bellow flags kept exactly as default)
 #ifndef NRF24_SCK_PIN
 #define NRF24_SCK_PIN -1
 #endif
-
 #ifndef NRF24_MISO_PIN
 #define NRF24_MISO_PIN -1
 #endif
-
 #ifndef NRF24_MOSI_PIN
 #define NRF24_MOSI_PIN -1
 #endif
-
 #ifndef NRF24_SS_PIN
 #define NRF24_SS_PIN -1
 #endif
-
 #ifndef NRF24_CE_PIN
 #define NRF24_CE_PIN -1
 #endif
@@ -209,19 +224,15 @@
 #ifndef CC1101_SCK_PIN
 #define CC1101_SCK_PIN -1
 #endif
-
 #ifndef CC1101_MISO_PIN
 #define CC1101_MISO_PIN -1
 #endif
-
 #ifndef CC1101_MOSI_PIN
 #define CC1101_MOSI_PIN -1
 #endif
-
 #ifndef CC1101_SS_PIN
 #define CC1101_SS_PIN -1
 #endif
-
 #ifndef CC1101_GDO0_PIN
 #define CC1101_GDO0_PIN -1
 #endif
@@ -229,28 +240,21 @@
 #ifndef W5500_SCK_PIN
 #define W5500_SCK_PIN -1
 #endif
-
 #ifndef W5500_MISO_PIN
 #define W5500_MISO_PIN -1
 #endif
-
 #ifndef W5500_MOSI_PIN
 #define W5500_MOSI_PIN -1
 #endif
-
 #ifndef W5500_SS_PIN
 #define W5500_SS_PIN -1
 #endif
-
 #ifndef W5500_INT_PIN
 #define W5500_INT_PIN -1
 #endif
-
 #ifndef W5500_RST_PIN
 #define W5500_RST_PIN -1
 #endif
-
-// Temporary, delete after finish Interfaces
 
 #ifndef SMOOTH_FONT
 #define SMOOTH_FONT 1
