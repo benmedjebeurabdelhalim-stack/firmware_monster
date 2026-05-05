@@ -357,7 +357,36 @@ void BruceConfigPins::validateConfig() {
     validateI2CPins(i2c_bus);
     validateUARTPins(uart_bus);
     validateUARTPins(gps_bus);
+
+    // ======================================================
+    // الديكتاتورية البرمجية: فرض الأرقام بالقوة ومسح أي إعداد قديم
+    // ======================================================
+    tftDc = 14;          // فرضنا خط الـ DC تاع الشاشة
+    modemPwrEn = 16;     // فرضنا طاقة الموديم
+    radarOut = 1;        // فرضنا الرادار
+    touchIrq = 2;        // فرضنا اللمس
+    
+    // إجبار بطاقة الـ SD على استعمال الناقل المشترك
+    SDCARD_bus.sck = (gpio_num_t)12;
+    SDCARD_bus.mosi = (gpio_num_t)11;
+    SDCARD_bus.miso = (gpio_num_t)13;
+    SDCARD_bus.cs = (gpio_num_t)21;
+
+#if !defined(LITE_VERSION)
+    // إجبار الـ LoRa (RA-02) على استعمال نفس الناقل
+    LoRa_bus.sck = (gpio_num_t)12;
+    LoRa_bus.mosi = (gpio_num_t)11;
+    LoRa_bus.miso = (gpio_num_t)13;
+    LoRa_bus.cs = (gpio_num_t)7;
+#endif
+
+    // إجبار أي أجهزة تردد أخرى (CC1101) على نفس الطريق باش ما تصراش فوضى
+    CC1101_bus.sck = (gpio_num_t)12;
+    CC1101_bus.mosi = (gpio_num_t)11;
+    CC1101_bus.miso = (gpio_num_t)13;
+    // ======================================================
 }
+
 #if !defined(LITE_VERSION)
 void BruceConfigPins::setLoRaPins(SPIPins value) {
     LoRa_bus = value;
