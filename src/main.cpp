@@ -185,7 +185,24 @@ volatile int tftHeight = VECTOR_DISPLAY_DEFAULT_WIDTH;
 
 void begin_storage() {
     if (!LittleFS.begin(true)) { LittleFS.format(), LittleFS.begin(); }
+    
+    // ==========================================
+    // VOLTSHIELD X: NUKE OLD CONFIGURATION! ☢️
+    // مسح الذاكرة القديمة إجبارياً
+    LittleFS.remove("/brucePins.conf");
+    LittleFS.remove("/bak.brucePins.conf");
+    // ==========================================
+
     bool checkFS = setupSdCard();
+    
+    // ==========================================
+    // إذا كانت بطاقة SD راكبة، نمسح الإعدادات القديمة منها أيضاً
+    if (sdcardMounted) {
+        SD.remove("/brucePins.conf");
+        SD.remove("/bak.brucePins.conf");
+    }
+    // ==========================================
+
     bruceConfig.fromFile(checkFS);
     bruceConfigPins.fromFile(checkFS);
 }
